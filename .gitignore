@@ -1,0 +1,18 @@
+# Python virtual environment dependencies
+venv/
+
+# Bytecode cache
+__pycache__/
+*.py[cod]
+
+# Environment variables
+.env
+
+# Model / serialized artifacts
+*.pkl
+models/*.pkl
+
+# Editor files
+.vscode/
+*.swp
+

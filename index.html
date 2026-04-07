@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Job Recommender</title>
+</head>
+<body>
+
+<h2>Job Recommendation System</h2>
+
+<input type="text" id="skills" placeholder="Enter skills (Python, ML, SQL)" size="50">
+<button onclick="getRecommendations()">Get Jobs</button>
+
+<pre id="output"></pre>
+
+<script>
+async function getRecommendations() {
+    const skills = document.getElementById("skills").value;
+
+    const response = await fetch("http://127.0.0.1:5000/recommend", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            skills: skills,
+            top_n: 5
+        })
+    });
+
+    const data = await response.json();
+    document.getElementById("output").textContent = JSON.stringify(data, null, 2);
+}
+</script>
+
+</body>
+</html>

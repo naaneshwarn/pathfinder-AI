@@ -1,0 +1,217 @@
+# 🎯 Job Recommendation System — ML-Powered Flask API
+
+## Problem Solved
+Job seekers often don't know:
+1. What **salary** to expect for a role
+2. What **skills** are needed for a role
+3. Which **companies** specialize in hiring for a role
+
+This system solves all three using ML on `postings.csv` (123,849 LinkedIn job postings).
+
+---
+
+## 🧠 ML Model: TF-IDF + Cosine Similarity
+
+### Why this model?
+
+| Model | Pros | Cons | Verdict |
+|-------|------|------|---------|
+| **TF-IDF + Cosine Similarity** | No labeled data needed, fast, explainable, great for text overlap | No semantic understanding | ✅ **Best fit** |
+| Collaborative Filtering | Learns from user behavior | Needs historical user-job interaction data — not in dataset | ❌ No interaction data |
+| Neural / BERT Embeddings | Semantic matching | Slow to train, needs GPU | 🔄 Future upgrade |
+| KNN | Simple | Doesn't scale to 120k rows well | ❌ Slow |
+
+### How it works (step-by-step)
+
+```
+User Input:  "Python, SQL, Machine Learning, Data Analysis"
+        │
+        ▼
+┌──────────────────────────────────────────────────┐
+│  Step 1: Preprocessing                           │
+│  • Lowercase + clean special chars               │
+│  • Combine job title + description + skills_desc │
+│  • Weight skills_desc 3× (TF-IDF trick)          │
+└──────────────────────────────────────────────────┘
+        │
+        ▼
+┌──────────────────────────────────────────────────┐
+│  Step 2: TF-IDF Vectorization                    │
+│  • Vocab: top 15,000 terms (unigrams + bigrams)  │
+│  • Sparse matrix: (123,849 jobs × 15,000 terms)  │
+│  • User skills → same vector space               │
+└──────────────────────────────────────────────────┘
+        │
+        ▼
+┌──────────────────────────────────────────────────┐
+│  Step 3: Cosine Similarity                       │
+│  • cos(user_vector, each_job_vector)             │
+│  • Score 0.0 = no overlap, 1.0 = perfect match  │
+│  • Sort descending → top N jobs                  │
+└──────────────────────────────────────────────────┘
+        │
+        ▼
+  Return: job_title, company, salary, skills, score
+```
+
+---
+
+## 🚀 Setup & Run
+
+### 1. Install dependencies
+```bash
+pip install -r requirements.txt
+```
+
+### 2. Place dataset
+```bash
+cp postings.csv data/postings.csv
+```
+
+### 3. Train the model (one-time, ~30s)
+```bash
+cd app
+python train.py --data ../data/postings.csv --output ../models/job_recommender.pkl
+```
+
+### 4. Start the Flask API
+```bash
+python app.py
+# → Running on http://0.0.0.0:5000
+```
+
+### 5. (Production) Use Gunicorn
+```bash
+gunicorn -w 4 -b 0.0.0.0:5000 app:app
+```
+
+---
+
+## 📡 API Endpoints
+
+### `POST /recommend`
+Returns top N job matches for given skills.
+
+**Request:**
+```json
+{
+  "skills": "Python, SQL, Machine Learning, Pandas, Data Analysis",
+  "top_n": 5
+}
+```
+
+**Response:**
+```json
+{
+  "status": "success",
+  "user_skills": "Python, SQL, Machine Learning, Pandas, Data Analysis",
+  "recommendations": [
+    {
+      "rank": 1,
+      "match_score": 0.4821,
+      "job_title": "Data Scientist",
+      "company": "Meta",
+      "location": "Menlo Park, CA",
+      "work_type": "Full-time",
+      "experience_level": "Mid-Senior level",
+      "annual_salary_usd": 185000.0,
+      "required_skills": "Strong Python skills, SQL proficiency, ML frameworks...",
+      "job_url": "https://www.linkedin.com/jobs/view/..."
+    }
+  ]
+}
+```
+
+---
+
+### `POST /salary-benchmark`
+Returns salary statistics for any job title.
+
+**Request:**
+```json
+{ "job_title": "Data Scientist" }
+```
+
+**Response:**
+```json
+{
+  "salary_benchmark": {
+    "count": 342,
+    "min": 55000.0,
+    "p25": 95000.0,
+    "median": 130000.0,
+    "mean": 133500.0,
+    "p75": 165000.0,
+    "max": 300000.0
+  }
+}
+```
+
+---
+
+### `GET /companies/<job_title>`
+Returns top companies hiring for a role.
+
+```
+GET /companies/Data%20Scientist
+```
+
+**Response:**
+```json
+{
+  "top_companies": [
+    { "company": "Amazon", "job_openings": 45 },
+    { "company": "Google", "job_openings": 38 }
+  ]
+}
+```
+
+---
+
+### `POST /skills-for-role`
+Returns the most in-demand skills for a job title.
+
+**Request:**
+```json
+{ "job_title": "Software Engineer" }
+```
+
+**Response:**
+```json
+{
+  "required_skills": [
+    { "skill": "python", "mention_count": 512 },
+    { "skill": "java", "mention_count": 430 }
+  ]
+}
+```
+
+---
+
+## 📁 Project Structure
+
+```
+job_recommender/
+├── app/
+│   ├── app.py            ← Flask API routes
+│   ├── recommender.py    ← ML model class (TF-IDF + Cosine Similarity)
+│   └── train.py          ← One-time training script
+├── data/
+│   └── postings.csv      ← Dataset (place here)
+├── models/
+│   └── job_recommender.pkl  ← Saved model (generated by train.py)
+├── requirements.txt
+└── README.md
+```
+
+---
+
+## 🔮 Future Upgrades
+
+| Upgrade | Benefit |
+|---------|---------|
+| Sentence-BERT embeddings | Semantic skill matching ("data wrangling" ≈ "pandas") |
+| User profile memory | Personalize by history |
+| Industry filter | Narrow to specific sectors |
+| Real-time job scraping | Keep dataset fresh |
+| A/B test model versions | Compare TF-IDF vs BERT accuracy |
